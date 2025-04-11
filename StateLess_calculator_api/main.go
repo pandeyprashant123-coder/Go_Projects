@@ -6,16 +6,6 @@ import (
 	"net/http"
 )
 
-type Numbers struct {
-	Number1 int `json:"number1"`
-	Number2 int `json:"number2"`
-}
-
-type Response struct {
-	Result      int
-	Description string
-}
-
 func main() {
 	http.HandleFunc("/", Home)
 	http.HandleFunc("/add", AddNumbers)
