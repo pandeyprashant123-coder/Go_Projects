@@ -95,6 +95,9 @@ func DivideNumbers(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 	}
+	if num:=numbers.Number2; num==0 {
+		http.Error(w,err.Error(),http.StatusNotAcceptable)
+	}
 	sum := numbers.Number1 * numbers.Number2
 	response := Response{
 		Result:      sum,
