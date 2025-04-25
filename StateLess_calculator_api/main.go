@@ -7,11 +7,11 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/", Home)
 	mux := http.NewServeMux()
+	mux.HandleFunc("/", Home)
 	h := &calcHandler{}
 	mux.Handle("/calc/", rateLimitingMiddleWare(h))
-	fmt.Println("Server running on localhost:8000")
+	fmt.Println("Server running on http://localhost:8000")
 	log.Fatal(http.ListenAndServe(":8000", mux))
 }
 
