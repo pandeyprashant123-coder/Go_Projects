@@ -20,11 +20,6 @@ type Response struct {
 }
 
 func (h *calcHandler) AddNumbers(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
 	numbers := &Numbers{}
 	err := json.NewDecoder(r.Body).Decode(&numbers)
 	if err != nil {
@@ -39,11 +34,6 @@ func (h *calcHandler) AddNumbers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 func (h *calcHandler) SubtractNumbers(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
 	numbers := &Numbers{}
 	err := json.NewDecoder(r.Body).Decode(&numbers)
 	if err != nil {
@@ -58,10 +48,6 @@ func (h *calcHandler) SubtractNumbers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 func (h *calcHandler) MultiplyNumbers(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 	w.Header().Set("Content-Type", "application/json")
 	numbers := &Numbers{}
 	err := json.NewDecoder(r.Body).Decode(&numbers)
@@ -77,11 +63,7 @@ func (h *calcHandler) MultiplyNumbers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 func (h *calcHandler) DivideNumbers(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
+
 	numbers := &Numbers{}
 	err := json.NewDecoder(r.Body).Decode(&numbers)
 	if err != nil {
@@ -98,13 +80,7 @@ func (h *calcHandler) DivideNumbers(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
 }
-
 func (h *calcHandler) Sum(w http.ResponseWriter, r *http.Request) {
-	if r.Method != "POST" {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-	w.Header().Set("Content-Type", "application/json")
 	numArray:=&NumArray{}
 	err :=json.NewDecoder(r.Body).Decode(&numArray)
 	if err!=nil{

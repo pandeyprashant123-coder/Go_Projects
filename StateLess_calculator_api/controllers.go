@@ -6,6 +6,7 @@ import (
 )
 
 type calcHandler struct{}
+type userHandler struct{}
 
 var (
 	add      = regexp.MustCompile(`^\/add[\/]*$`)
@@ -13,6 +14,8 @@ var (
 	multiply = regexp.MustCompile(`^\/multiply[\/]*$`)
 	divide   = regexp.MustCompile(`^\/divide[\/]*$`)
 	sum      = regexp.MustCompile(`^\/sum[\/]*$`)
+	login    = regexp.MustCompile(`^\/login[\/]*$`)
+	register = regexp.MustCompile(`^\/register[\/]*$`)
 )
 
 func (h *calcHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -35,6 +38,17 @@ func (h *calcHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	default:
 		notFound(w, r)
+		return
+	}
+}
+
+func(h *userHandler) ServeHTTP(w http.ResponseWriter, r *http.Request){
+	w.Header().Set("content-type", "application/json")
+	switch{
+	case r.Method == http.MethodPost && register.MatchString(r.URL.Path):
+		return
+	default:
+		notFound(w,r)
 		return
 	}
 }

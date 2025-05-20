@@ -4,7 +4,12 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/joho/godotenv"
 )
+
+
 
 func main() {
 	mux := http.NewServeMux()
@@ -18,3 +23,11 @@ func main() {
 func Home(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, "Welcome to calculator app")
 }
+
+func goDotEnvVariable(key string) string {
+	err := godotenv.Load(".env")
+	if err != nil {
+	  log.Fatalf("Error loading .env file")
+	}
+	return os.Getenv(key)
+  }

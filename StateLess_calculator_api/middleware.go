@@ -23,7 +23,7 @@ func getClientRateLimiter(ip string) *rate.Limiter {
 		return client.Limiter
 	}
 
-	limiter := rate.NewLimiter(5, 1)
+	limiter := rate.NewLimiter(100, 1)
 	clients[ip] = &Client{Limiter: limiter}
 	return limiter
 }
