@@ -1,100 +1,152 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"net/http"
-	"slices"
+	"net/url"
 	"strings"
+	"sync"
 
 	"golang.org/x/net/html"
 )
 
+const workerCount = 10
+
+var requestURL = flag.String("link", "", "URL to start crawling from")
+
 func main() {
-	requestURL := "https://scrape-me.dreamsofcode.io"
+	// "https://scrape-me.dreamsofcode.io"
+	flag.Parse()
 
-	deadLinks := crawler(requestURL)
-	fmt.Println("dead returned")
+	if *requestURL == "" {
+		fmt.Println("Please provide a URL using --link flag")
+		return
+	}
 
+	deadLinks := crawler(*requestURL)
+
+	fmt.Println("Dead links:")
 	for _, link := range deadLinks {
 		fmt.Println(link)
 	}
 }
 
 func crawler(rootURL string) []string {
-	// originDomain := rootURL
-	var visited []string
-	var queue = make([]string, 0)
+	var wg sync.WaitGroup
+	var crawlWg sync.WaitGroup
+
+	visited := sync.Map{}
+	queue := make(chan string, 100)
+	deadLinkChan := make(chan string, 100)
+
+	rootParsed, err := url.Parse(rootURL)
+	if err != nil {
+		fmt.Println("Invalid root URL:", err)
+		return nil
+	}
+	rootHost := rootParsed.Host
+
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go worker(&wg, queue, deadLinkChan, &visited, &crawlWg, rootHost)
+	}
+
+	crawlWg.Add(1)
+	queue <- rootURL
+	go func() {
+		crawlWg.Wait()
+		close(queue)
+	}()
+
+	go func() {
+		wg.Wait()
+		close(deadLinkChan)
+	}()
+
 	var deadLinks []string
-	queue = enqueue(queue, rootURL)
-	for len(queue) > 0 {
-
-		currentUrl, newQueue := dequeue(queue)
-		queue = newQueue
-		if slices.Contains(visited, currentUrl) {
-			continue
-		}
-		visited = append(visited, currentUrl)
-		res, err := http.Get(currentUrl)
-		if err != nil {
-			fmt.Printf("error making http request: %s\n", err)
-			continue
-		}
-		status := res.StatusCode
-		if status >= 400 && status < 600 {
-			// fmt.Println("dead link:", currentUrl)
-			deadLinks = append(deadLinks, currentUrl)
-		}
-		// fmt.Println("ok:", currentUrl)
-		defer res.Body.Close()
-		doc, err := html.Parse(res.Body)
-		if err != nil {
-			fmt.Printf("client: could not read response body: %s\n", err)
-		}
-		paths := processBody(doc)
-		for _, p := range paths {
-			normalizedURL := currentUrl + p
-			if !isValidURL(normalizedURL) {
-				continue
-			}
-			if slices.Contains(visited, normalizedURL) {
-				continue
-			}
-			queue = append(queue, normalizedURL)
-		}
-
+	for link := range deadLinkChan {
+		deadLinks = append(deadLinks, link)
 	}
 	return deadLinks
-
 }
 
-func isValidURL(URL string) bool {
-	return strings.HasPrefix(URL, "http://") || strings.HasPrefix(URL, "https://")
-}
-func enqueue(queue []string, element string) []string {
-	queue = append(queue, element)
-	return queue
-}
+func worker(wg *sync.WaitGroup, queue chan string, deadlinks chan string, visited *sync.Map, crawlWg *sync.WaitGroup, rootHost string) {
+	defer wg.Done()
 
-func dequeue(queue []string) (string, []string) {
-	element := queue[0] // The first element is the one to be dequeued.
-	if len(queue) == 1 {
-		var tmp = []string{}
-		return element, tmp
+	for current := range queue {
+		if _, seen := visited.LoadOrStore(current, true); seen {
+			crawlWg.Done()
+			continue
+		}
+
+		resp, err := http.Get(current)
+		if err != nil {
+			deadlinks <- current
+			crawlWg.Done()
+			continue
+		}
+		if resp.StatusCode >= 400 && resp.StatusCode < 600 {
+			deadlinks <- current
+			resp.Body.Close()
+			crawlWg.Done()
+			continue
+		}
+
+		doc, err := html.Parse(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			crawlWg.Done()
+			continue
+		}
+
+		links := extractLinks(doc)
+		for _, link := range links {
+			absURL := resolveURL(current, link)
+			if absURL == "" || !isValidLink(absURL, rootHost) {
+				continue
+			}
+			crawlWg.Add(1)
+			queue <- absURL
+		}
+		crawlWg.Done()
 	}
-	return element, queue[1:] // Slice off the element once it is dequeued.
 }
 
-func processBody(n *html.Node) []string {
+func isValidLink(link, rootHost string) bool {
+	if strings.HasPrefix(link, "mailto:") || strings.HasPrefix(link, "javascript:") {
+		return false
+	}
+	parsed, err := url.Parse(link)
+	if err != nil || parsed.Host == "" {
+		return false
+	}
+	return parsed.Host == rootHost
+}
+
+func extractLinks(n *html.Node) []string {
 	var links []string
 	if n.Type == html.ElementNode && n.Data == "a" {
 		for _, a := range n.Attr {
-			if a.Key == "href" && strings.HasPrefix(a.Val, "/") {
+			if a.Key == "href" {
 				links = append(links, a.Val)
 			}
 		}
 	}
 	for c := n.FirstChild; c != nil; c = c.NextSibling {
-		links = append(links, processBody(c)...)
+		links = append(links, extractLinks(c)...)
 	}
 	return links
+}
+
+func resolveURL(base, href string) string {
+	baseURL, err := url.Parse(base)
+	if err != nil {
+		return ""
+	}
+	hrefURL, err := url.Parse(href)
+	if err != nil {
+		return ""
+	}
+	return baseURL.ResolveReference(hrefURL).String()
 }
